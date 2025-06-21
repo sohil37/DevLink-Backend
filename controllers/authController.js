@@ -1,6 +1,7 @@
-const User = require("../models/User");
+const UserCredentials = require("../models/UserCredentials");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const UserSession = require("../models/UserSession");
 
 // GENERATE TOKENS
 const generateAccessToken = (userId) => {
@@ -16,22 +17,26 @@ const generateRefreshToken = (userId) => {
 };
 
 // REGISTER
-exports.register = async (req, res) => {
+register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
-    const isUsernameExists = await User.findOne({ username });
+    const isUsernameExists = await UserCredentials.findOne({ username });
     if (isUsernameExists)
       return res
         .status(409)
         .json({ msg: "Username already exists", isExists: "username" });
-    const isEmailExists = await User.findOne({ email });
+    const isEmailExists = await UserCredentials.findOne({ email });
     if (isEmailExists)
       return res
         .status(409)
         .json({ msg: "Email already exists", isExists: "email" });
     const hash = await bcrypt.hash(password, 10);
-    const user = new User({ username, email, password: hash });
-    await user.save();
+    const userCredentials = new UserCredentials({
+      username,
+      email,
+      password: hash,
+    });
+    await userCredentials.save();
     res.status(201).json({ msg: "User registered" });
   } catch (err) {
     res.status(500).json({ msg: "Server error" });
@@ -39,10 +44,10 @@ exports.register = async (req, res) => {
 };
 
 // LOGIN
-exports.login = async (req, res) => {
+login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const user = await UserCredentials.findOne({ email });
     if (!user) return res.status(401).json({ msg: "Invalid credentials" });
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -51,8 +56,10 @@ exports.login = async (req, res) => {
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
-    user.refreshToken = refreshToken;
-    await user.save();
+    let userSession = await UserSession.findOne({ _id: user._id });
+    if (!userSession) userSession = new UserSession({ _id: user._id });
+    userSession.refreshToken = refreshToken;
+    await userSession.save();
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
@@ -68,19 +75,20 @@ exports.login = async (req, res) => {
 };
 
 // REFRESH TOKEN
-exports.refresh = async (req, res) => {
+refresh = async (req, res) => {
   try {
     const token = req.cookies.refreshToken;
     if (!token) return res.status(401).json({ msg: "No token" });
 
-    const user = await User.findOne({ refreshToken: token });
-    if (!user) return res.status(403).json({ msg: "Invalid refresh token" });
+    const userSession = await UserSession.findOne({ refreshToken: token });
+    if (!userSession)
+      return res.status(403).json({ msg: "Invalid refresh token" });
 
     jwt.verify(token, process.env.JWT_REFRESH_SECRET, (err, decoded) => {
-      if (err || decoded.userId !== user._id.toString())
+      if (err || decoded.userId !== userSession._id.toString())
         return res.status(403).json({ msg: "Invalid refresh token" });
 
-      const newAccessToken = generateAccessToken(user._id);
+      const newAccessToken = generateAccessToken(userSession._id);
       res.json({ accessToken: newAccessToken });
     });
   } catch (err) {
@@ -89,14 +97,14 @@ exports.refresh = async (req, res) => {
 };
 
 // LOGOUT
-exports.logout = async (req, res) => {
+logout = async (req, res) => {
   try {
     const token = req.cookies.refreshToken;
     if (token) {
-      const user = await User.findOne({ refreshToken: token });
-      if (user) {
-        user.refreshToken = null;
-        await user.save();
+      const userSession = await UserSession.findOne({ refreshToken: token });
+      if (userSession) {
+        userSession.refreshToken = null;
+        await userSession.save();
       }
     }
     res.clearCookie("refreshToken");
@@ -104,4 +112,11 @@ exports.logout = async (req, res) => {
   } catch (err) {
     res.status(500).json({ msg: "Server error" });
   }
+};
+
+module.exports = {
+  register,
+  login,
+  refresh,
+  logout,
 };
