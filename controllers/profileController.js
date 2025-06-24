@@ -1,10 +1,13 @@
 const UserProfile = require("../models/UserProfile");
+const ApiError = require("../utils/helperClasses");
 
-const updateProfile = async (req, res) => {
+const updateProfile = async (req, res, session) => {
   try {
     const userId = req.userId; // from authMiddleware
     const reqBody = req.body;
-    let userProfile = await UserProfile.findOne({ _id: userId });
+    let userProfile = await UserProfile.findOne({ _id: userId }).session(
+      session
+    );
     if (!userProfile) userProfile = new UserProfile({ _id: userId });
     userProfile.$set(reqBody);
     userProfile.isProfileComplete =
@@ -18,11 +21,13 @@ const updateProfile = async (req, res) => {
       userProfile.skills.length > 0 &&
       userProfile.projects.length > 0 &&
       userProfile.experience.length > 0;
-    userProfile.save();
-    res.json({ msg: "Profile updated" });
+    userProfile.save({ session });
+    setResponseJson({
+      res,
+      msg: "Profile updated",
+    });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ msg: "Server error" });
+    throw new ApiError();
   }
 };
 
