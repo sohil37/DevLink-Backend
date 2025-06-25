@@ -44,7 +44,7 @@ const register = async (req, res, session) => {
       password: hash,
     });
     await userCredentials.save({ session });
-    res.status(201).json({ msg: "User registered" });
+    setResponseJson({ res, status: 201, msg: "User registered" });
   } catch (err) {
     throw new ApiError();
   }
@@ -55,9 +55,11 @@ const login = async (req, res, session) => {
   try {
     const { email, password } = req.body;
     const user = await UserCredentials.findOne({ email }).session(session);
-    if (!user) return res.status(401).json({ msg: "Invalid credentials" });
+    if (!user)
+      return setResponseJson({ res, status: 401, msg: "Invalid credentials" });
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ msg: "Invalid credentials" });
+    if (!isMatch)
+      return setResponseJson({ res, status: 401, msg: "Invalid credentials" });
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
     let userSession = await UserSession.findOne({ _id: user._id }).session(
@@ -82,15 +84,23 @@ const login = async (req, res, session) => {
 const refresh = async (req, res, session) => {
   try {
     const token = req.cookies.refreshToken;
-    if (!token) return res.status(401).json({ msg: "No token" });
+    if (!token) return setResponseJson({ res, status: 401, msg: "No token" });
     const userSession = await UserSession.findOne({
       refreshToken: token,
     }).session(session);
     if (!userSession)
-      return res.status(403).json({ msg: "Invalid refresh token" });
+      return setResponseJson({
+        res,
+        status: 403,
+        msg: "Invalid refresh token",
+      });
     jwt.verify(token, process.env.JWT_REFRESH_SECRET, (err, decoded) => {
       if (err || decoded.userId !== userSession._id.toString())
-        return res.status(403).json({ msg: "Invalid refresh token" });
+        return setResponseJson({
+          res,
+          status: 403,
+          msg: "Invalid refresh token",
+        });
       const newAccessToken = generateAccessToken(userSession._id);
       setResponseJson({
         res,

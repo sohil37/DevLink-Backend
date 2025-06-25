@@ -23,6 +23,7 @@ app.use(cookieParser());
 // ROUTES
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/profile", require("./routes/profileRoutes"));
+app.use("/api/connections", require("./routes/connectionsRoutes"));
 
 // START SERVER
 const PORT = process.env.PORT || 5000;

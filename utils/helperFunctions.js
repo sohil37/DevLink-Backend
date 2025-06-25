@@ -29,7 +29,7 @@ const mongoTransaction = (apiFunction) => async (req, res) => {
     const status = err instanceof ApiError ? err.status : 500;
     const message = err.message || "Internal Server Error";
     const data = err instanceof ApiError ? err.data : undefined;
-    res.status(status).json({ msg: message, ...(data && { data }) });
+    setResponseJson({ res, status, msg: message, ...(data && { data }) });
   } finally {
     session.endSession();
   }
