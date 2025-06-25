@@ -1,3 +1,4 @@
+const { default: mongoose } = require("mongoose");
 const {
   LETTERS_HYPHENS_APOSTROPHES,
   REPEATED_CHARACTERS,
@@ -140,67 +141,82 @@ const SKILLS = {
 
 const PROJECTS = {
   type: [
-    {
-      name: {
-        type: String,
-        required: [true, "Project name is required"],
-        trim: true,
-        minlength: [3, "Project name must be at least 3 characters"],
-        maxlength: [100, "Project name must be at most 100 characters"],
-      },
-      description: {
-        type: String,
-        trim: true,
-        minlength: [20, "Description must be at least 20 characters"],
-        maxlength: [2000, "Description must be at most 2000 characters"],
-      },
-      startDate: STATE_DATE,
-      endDate: END_DATE,
-      technologiesUsed: {
-        type: [String],
-        default: [],
-        validate: [
-          {
-            validator: function (techs) {
-              return techs.length <= 20;
+    new mongoose.Schema(
+      {
+        name: {
+          type: String,
+          required: [true, "Project name is required"],
+          trim: true,
+          minlength: [3, "Project name must be at least 3 characters"],
+          maxlength: [100, "Project name must be at most 100 characters"],
+        },
+        description: {
+          type: String,
+          trim: true,
+          minlength: [20, "Description must be at least 20 characters"],
+          maxlength: [2000, "Description must be at most 2000 characters"],
+        },
+        startDate: STATE_DATE,
+        endDate: END_DATE,
+        technologiesUsed: {
+          type: [String],
+          default: [],
+          validate: [
+            {
+              validator: function (techs) {
+                return techs.length <= 20;
+              },
+              message: "You can specify a maximum of 20 technologies",
             },
-            message: "You can specify a maximum of 20 technologies",
-          },
-          {
-            validator: function (techs) {
-              return techs.every((tech) => isTechnologyValid(tech));
+            {
+              validator: function (techs) {
+                return techs.every((tech) => isTechnologyValid(tech));
+              },
+              message:
+                "Each technology must be 2-30 characters and use valid characters",
             },
-            message:
-              "Each technology must be 2-30 characters and use valid characters",
-          },
-        ],
+          ],
+        },
       },
-    },
+      { _id: false }
+    ),
   ],
   default: [],
 };
 
 const EXPERIENCE = {
-  type: [
+  type: new mongoose.Schema(
     {
-      name: {
-        type: String,
-        required: [true, "Company name is required"],
-        trim: true,
-        minlength: [3, "Company name must be at least 3 characters"],
-        maxlength: [100, "Company name must be at most 100 characters"],
+      totalExpInMonths: {
+        type: Number,
+        default: 0,
       },
-      description: {
-        type: String,
-        trim: true,
-        minlength: [20, "Description must be at least 20 characters"],
-        maxlength: [2000, "Description must be at most 2000 characters"],
+      experience: {
+        type: [
+          {
+            name: {
+              type: String,
+              required: [true, "Company name is required"],
+              trim: true,
+              minlength: [3, "Company name must be at least 3 characters"],
+              maxlength: [100, "Company name must be at most 100 characters"],
+            },
+            description: {
+              type: String,
+              trim: true,
+              minlength: [20, "Description must be at least 20 characters"],
+              maxlength: [2000, "Description must be at most 2000 characters"],
+            },
+            startDate: STATE_DATE,
+            endDate: END_DATE,
+          },
+        ],
+        default: [],
       },
-      startDate: STATE_DATE,
-      endDate: END_DATE,
     },
-  ],
-  default: [],
+    { _id: false }
+  ),
+  default: () => ({ totalExpInMonths: 0, experience: [] }),
 };
 
 module.exports = {

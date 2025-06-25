@@ -1,6 +1,7 @@
 const { default: mongoose } = require("mongoose");
 const { TECHNOLOGIES } = require("./constants/regex");
 const ApiError = require("./helperClasses");
+const { differenceInMonths } = require("date-fns");
 
 const isEndDateValid = (startDate, endDate) =>
   !startDate || endDate >= startDate;
@@ -34,9 +35,29 @@ const mongoTransaction = (apiFunction) => async (req, res) => {
   }
 };
 
+const getExpInfo = (experience = []) => {
+  let exp = {
+    totalExpInMonths: 0,
+    experience: [],
+  };
+  if (experience.length > 0)
+    exp = {
+      totalExpInMonths: experience.reduce((sum, exp) => {
+        const diff = differenceInMonths(
+          new Date(exp.endDate),
+          new Date(exp.startDate)
+        );
+        return sum + diff;
+      }, 0),
+      experience,
+    };
+  return exp;
+};
+
 module.exports = {
   isEndDateValid,
   isTechnologyValid,
   setResponseJson,
   mongoTransaction,
+  getExpInfo,
 };

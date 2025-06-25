@@ -9,5 +9,10 @@ router.put(
   verifyToken,
   mongoTransaction(profileController.updateProfile)
 );
+router.post(
+  "/search",
+  verifyToken,
+  mongoTransaction(profileController.searchProfile)
+);
 
 module.exports = router;
