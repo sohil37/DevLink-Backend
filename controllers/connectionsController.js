@@ -39,6 +39,7 @@ const sendConnRequest = async (req, res, session) => {
       status: 201,
       msg: "Connection request sent successfully",
       requestStatus: "created",
+      id: connections._id,
     });
   } catch (err) {
     throw new ApiError();
@@ -47,8 +48,10 @@ const sendConnRequest = async (req, res, session) => {
 
 const acceptConnRequest = async (req, res, session) => {
   try {
+    const userId = req.userId; // from authMiddleware
     const connection = await Connections.findOne({
       _id: req.body.connId,
+      receiver: userId,
     }).session(session);
     if (!connection)
       return setResponseJson({
@@ -71,11 +74,8 @@ const acceptConnRequest = async (req, res, session) => {
 
 const removeConnRequest = async (req, res, session) => {
   try {
-    const senderId = req.userId; // from authMiddleware
-    let receiverId = req.body.userId;
     await Connections.deleteOne({
-      sender: senderId,
-      receiver: receiverId,
+      _id: req.body.connId,
     }).session(session);
     return setResponseJson({
       res,
@@ -90,16 +90,19 @@ const removeConnRequest = async (req, res, session) => {
 
 const getConnections = async (req, res, session) => {
   try {
-    const senderId = req.userId;
-    const connStatus = req.body?.connStatus;
-    const connections = await Connections.find(
-      connStatus
-        ? {
-            sender: senderId,
-            status: connStatus,
-          }
-        : { sender: senderId }
-    )
+    const userId = req.userId; // from authMiddleware
+    let connFilter =
+      req.body?.type === "sender"
+        ? { sender: userId }
+        : req.body?.type === "receiver"
+        ? { receiver: userId }
+        : {
+            $or: [{ sender: userId }, { receiver: userId }],
+          };
+    const connections = await Connections.find({
+      ...connFilter,
+      status: req.body?.connStatus,
+    })
       .lean()
       .session(session);
     const receiverIds = connections.map((conn) => conn.receiver);

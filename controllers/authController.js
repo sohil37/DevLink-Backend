@@ -44,7 +44,12 @@ const register = async (req, res, session) => {
       password: hash,
     });
     await userCredentials.save({ session });
-    setResponseJson({ res, status: 201, msg: "User registered" });
+    setResponseJson({
+      res,
+      status: 201,
+      msg: "User registered",
+      id: userCredentials._id,
+    });
   } catch (err) {
     throw new ApiError();
   }
