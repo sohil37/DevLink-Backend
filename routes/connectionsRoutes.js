@@ -14,5 +14,15 @@ router.post(
   verifyToken,
   mongoTransaction(connectionsController.removeConnRequest)
 );
+router.put(
+  "/acceptRequest",
+  verifyToken,
+  mongoTransaction(connectionsController.acceptConnRequest)
+);
+router.get(
+  "/getConnections",
+  verifyToken,
+  mongoTransaction(connectionsController.getConnections)
+);
 
 module.exports = router;
