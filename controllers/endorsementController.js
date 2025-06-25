@@ -48,6 +48,28 @@ const sendEndorsements = async (req, res, session) => {
   }
 };
 
+const getEndorsements = async (req, res, session) => {
+  try {
+    const userId = req.userId; // from authMiddleware
+    let endorsFilter =
+      req.body?.type === "sender"
+        ? { endorsedBy: userId }
+        : { endorsedTo: userId };
+    setResponseJson({
+      res,
+      msg: "Endorsements",
+      data: await Endorsements.find({
+        ...endorsFilter,
+      })
+        .lean()
+        .session(session),
+    });
+  } catch (err) {
+    throw new ApiError();
+  }
+};
+
 module.exports = {
   sendEndorsements,
+  getEndorsements,
 };

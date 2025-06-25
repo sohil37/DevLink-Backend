@@ -9,5 +9,10 @@ router.put(
   verifyToken,
   mongoTransaction(endorsementsController.sendEndorsements)
 );
+router.post(
+  "/getEndorsements",
+  verifyToken,
+  mongoTransaction(endorsementsController.getEndorsements)
+);
 
 module.exports = router;
