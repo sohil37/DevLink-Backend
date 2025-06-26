@@ -2,6 +2,10 @@ const router = require("express").Router();
 const verifyToken = require("../middleware/authMiddleware");
 const profileController = require("../controllers/profileController");
 const { mongoTransaction } = require("../utils/helperFunctions");
+const attachLogger = require("../middleware/loggerMiddleware");
+
+// MIDDLEWARE
+router.use(attachLogger("profileController"));
 
 // ROUTES
 router.put(

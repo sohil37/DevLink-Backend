@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "D:\\Projects\\Devlink\\Backend\\logs\\connectionsController\\.eb7b08eb4125925489dee8a9f774d94c3f5f6366-audit.json",
+    "files": [
+        {
+            "date": 1750945171888,
+            "name": "D:\\Projects\\Devlink\\Backend\\logs\\connectionsController\\2025-06-26.log",
+            "hash": "54f503e89276eb5605ce3225f2ed8f24150c676498e97a13da85b7d747f784a4"
+        }
+    ],
+    "hashType": "sha256"
+}

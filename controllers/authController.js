@@ -21,50 +21,61 @@ const generateRefreshToken = (userId) => {
 
 // REGISTER
 const register = async (req, res, session) => {
+  const logger = req.loggerWithRoute;
   try {
-    const { username, email, password } = req.body;
-    const isUsernameExists = await UserCredentials.findOne({
-      username,
-    }).session(session);
-    if (isUsernameExists)
-      return res
-        .status(409)
-        .json({ msg: "Username already exists", isExists: "username" });
+    const { email, password } = req.body;
+    logger.info(`User requested to register with email "${email}"`);
     const isEmailExists = await UserCredentials.findOne({ email }).session(
       session
     );
     if (isEmailExists)
-      return res
-        .status(409)
-        .json({ msg: "Email already exists", isExists: "email" });
+      throw new ApiError(
+        `User Registration Failed. Email "${email}" already exists`,
+        "Email already exist",
+        409,
+        {
+          isExists: "email",
+        }
+      );
     const hash = await bcrypt.hash(password, 10);
     const userCredentials = new UserCredentials({
-      username,
       email,
       password: hash,
     });
     await userCredentials.save({ session });
+    logger.info(`User "${userCredentials._id}" created for email "${email}"`);
     setResponseJson({
       res,
       status: 201,
       msg: "User registered",
       id: userCredentials._id,
     });
+    logger.info(`Successful response sent to user "${userCredentials._id}"`);
   } catch (err) {
-    throw new ApiError();
+    throw err;
   }
 };
 
 // LOGIN
 const login = async (req, res, session) => {
+  const logger = req.loggerWithRoute;
   try {
     const { email, password } = req.body;
+    logger.info(`User requested to login with email "${email}"`);
     const user = await UserCredentials.findOne({ email }).session(session);
     if (!user)
-      return setResponseJson({ res, status: 401, msg: "Invalid credentials" });
+      throw new ApiError(
+        `Login Failed: Invalid credentials for email "${email}"`,
+        "Invalid credentials",
+        401
+      );
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch)
-      return setResponseJson({ res, status: 401, msg: "Invalid credentials" });
+      throw new ApiError(
+        `Login Failed: Invalid credentials for email "${email}"`,
+        "Invalid credentials",
+        401
+      );
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
     let userSession = await UserSession.findOne({ _id: user._id }).session(
@@ -73,6 +84,9 @@ const login = async (req, res, session) => {
     if (!userSession) userSession = new UserSession({ _id: user._id });
     userSession.refreshToken = refreshToken;
     await userSession.save({ session });
+    logger.info(
+      `Session created for user "${user._id}" having email "${email}"`
+    );
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: false, // Set to true in production
@@ -80,48 +94,63 @@ const login = async (req, res, session) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
     setResponseJson({ res, msg: "Access token generated", accessToken });
+    logger.info(
+      `Login Successful: Access token sent to user "${user._id}" having email "${email}"`
+    );
   } catch (err) {
-    throw new ApiError();
+    throw err;
   }
 };
 
 // REFRESH TOKEN
 const refresh = async (req, res, session) => {
+  const logger = req.loggerWithRoute;
+  const userId = req.userId; // from authMiddleware
+  logger.info(`New access token requested by user "${userId}"`);
   try {
     const token = req.cookies.refreshToken;
-    if (!token) return setResponseJson({ res, status: 401, msg: "No token" });
+    if (!token)
+      throw new ApiError(
+        `Refresh Token Failed: No token sent by user "${userId}"`,
+        "No refresh token sent",
+        401
+      );
     const userSession = await UserSession.findOne({
       refreshToken: token,
     }).session(session);
     if (!userSession)
-      return setResponseJson({
-        res,
-        status: 403,
-        msg: "Invalid refresh token",
-      });
+      throw new ApiError(
+        `Refresh Token Failed: Invalid refresh token sent by user "${userId}"`,
+        "Invalid refresh token",
+        403
+      );
     jwt.verify(token, process.env.JWT_REFRESH_SECRET, (err, decoded) => {
-      if (err || decoded.userId !== userSession._id.toString())
-        return setResponseJson({
-          res,
-          status: 403,
-          msg: "Invalid refresh token",
-        });
-      const newAccessToken = generateAccessToken(userSession._id);
+      if (err || decoded.userId !== userId)
+        throw new ApiError(
+          `Refresh Token Failed: Invalid refresh token sent by user "${userId}"`,
+          "Invalid refresh token",
+          403
+        );
+      const newAccessToken = generateAccessToken(userId);
       setResponseJson({
         res,
         msg: "New access token generated",
         accessToken: newAccessToken,
       });
+      logger.info(`New access token sent to user "${userId}"`);
     });
   } catch (err) {
-    throw new ApiError();
+    throw err;
   }
 };
 
 // LOGOUT
 const logout = async (req, res, session) => {
+  const logger = req.loggerWithRoute;
   try {
+    const userId = req.userId; // from authMiddleware
     const token = req.cookies.refreshToken;
+    logger.info(`Logout requested by user "${userId}"`);
     if (token) {
       const userSession = await UserSession.findOne({
         refreshToken: token,
@@ -136,26 +165,29 @@ const logout = async (req, res, session) => {
       res,
       msg: "Logged out",
     });
+    logger.info(`Logout successful for user "${userId}"`);
   } catch (err) {
-    throw new ApiError();
+    throw err;
   }
 };
 
 // DELETE
 const deleteAccount = async (req, res, session) => {
+  const logger = req.loggerWithRoute;
   try {
     const userId = req.userId; // from authMiddleware
+    logger.info(`Delete account requested by user "${userId}"`);
     // delete user profile
     const userProfileResult = await UserProfile.deleteOne({
       _id: userId,
     }).session(session);
     if (userProfileResult.deletedCount > 0) {
-      console.log(
-        `Document deleted from "user_profile" collection for _id: ${userId}.`
+      logger.info(
+        `Document deleted from "user_profile" collection for user "${userId}"`
       );
     } else {
-      console.log(
-        `No document found for _id: ${userId} in "user_profile" collection to delete.`
+      logger.info(
+        `No document found for user "${userId}" in "user_profile" collection to delete`
       );
     }
     // delete user session
@@ -163,12 +195,12 @@ const deleteAccount = async (req, res, session) => {
       _id: userId,
     }).session(session);
     if (userSessionResult.deletedCount > 0) {
-      console.log(
-        `Document deleted from "user_session" collection for _id: ${userId}.`
+      logger.info(
+        `Document deleted from "user_session" collection for user "${userId}"`
       );
     } else {
-      console.log(
-        `No document found for _id: ${userId} in "user_session" collection to delete.`
+      logger.info(
+        `No document found for user "${userId}" in "user_session" collection to delete`
       );
     }
     // delete user credentials
@@ -176,20 +208,21 @@ const deleteAccount = async (req, res, session) => {
       _id: userId,
     }).session(session);
     if (userCredResult.deletedCount > 0) {
-      console.log(
-        `Document deleted from "user_credentials" collection for _id: ${userId}.`
+      logger.info(
+        `Document deleted from "user_credentials" collection for user "${userId}"`
       );
     } else {
-      console.log(
-        `No document found for _id: ${userId} in "user_credentials" collection to delete.`
+      logger.info(
+        `No document found for user "${userId}" in "user_credentials" collection to delete`
       );
     }
     setResponseJson({
       res,
       msg: "Account deleted successfully",
     });
+    logger.info(`Account deleted successfully for user "${userId}"`);
   } catch (err) {
-    throw new ApiError();
+    throw err;
   }
 };
 

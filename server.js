@@ -3,13 +3,17 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const connectDB = require("./config/db");
 const express = require("express");
-const { authLimiter, apiLimiter } = require("./middleware/rateLimiter");
+const {
+  authLimiter,
+  apiLimiter,
+} = require("./middleware/rateLimiterMiddleware");
+const { v4: uuidv4 } = require("uuid");
 const app = express();
 
 // CONNECT DB
 connectDB();
 
-// MIDDLEWARES
+// INCOMING MIDDLEWARES
 app.use(
   cors({
     origin: "*",
@@ -20,6 +24,10 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
+app.use((req, res, next) => {
+  req.requestId = uuidv4();
+  next();
+});
 
 // ROUTES
 app.use("/api/auth", authLimiter, require("./routes/authRoutes"));
@@ -30,6 +38,9 @@ app.use(
   apiLimiter,
   require("./routes/endorsementsRoutes")
 );
+
+// OUTGOING MIDDLEWARES
+app.use(require("./middleware/errorHandlerMiddleware"));
 
 // START SERVER
 const PORT = process.env.PORT || 5000;

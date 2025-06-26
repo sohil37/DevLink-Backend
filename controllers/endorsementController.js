@@ -4,17 +4,23 @@ const ApiError = require("../utils/helperClasses");
 const { setResponseJson } = require("../utils/helperFunctions");
 
 const sendEndorsements = async (req, res, session) => {
+  const logger = req.loggerWithRoute;
   try {
     const senderId = req.userId; // from authMiddleware
     let receiverId = req.body.userId;
+    logger.info(
+      `Send Endorsements Initiated: User "${senderId}" -> User "${receiverId}"`
+    );
     let skills = req.body.skills;
     if (senderId === receiverId)
-      return setResponseJson({
-        res,
-        status: 400,
-        msg: "You can't endorse yourself",
-        requestStatus: "illegalRequest",
-      });
+      throw new ApiError(
+        `Send Endorsements Failed: User "${senderId}" tried endorsing itself`,
+        "You can't endorse yourself",
+        400,
+        {
+          requestStatus: "illegalRequest",
+        }
+      );
     const connection = await Connections.findOne({
       $or: [
         { sender: senderId },
@@ -24,12 +30,14 @@ const sendEndorsements = async (req, res, session) => {
       status: "accepted",
     }).session(session);
     if (!connection)
-      return setResponseJson({
-        res,
-        status: 400,
-        msg: "You can't endorse a non-connected member",
-        requestStatus: "illegalRequest",
-      });
+      throw new ApiError(
+        `Send Endorsements Failed: User "${senderId}" tried endorsing non-connected member "${receiverId}"`,
+        "You can't endorse a non-connected member",
+        400,
+        {
+          requestStatus: "illegalRequest",
+        }
+      );
     let endorsements = await Endorsements.findOne({
       endorsedBy: senderId,
       endorsedTo: receiverId,
@@ -37,20 +45,30 @@ const sendEndorsements = async (req, res, session) => {
     if (!endorsements) endorsements = new Endorsements();
     endorsements.$set({ endorsedBy: senderId, endorsedTo: receiverId, skills });
     await endorsements.save({ session });
+    logger.info(
+      `Send Endorsements Successful: User "${senderId}" -> User "${receiverId}"`
+    );
     setResponseJson({
       res,
       status: 200,
       msg: "Endorsements sent successfully",
       id: endorsements._id,
     });
+    logger.info(
+      `Successful Response Sent for endorsement: User "${senderId}" -> User "${receiverId}"`
+    );
   } catch (err) {
-    throw new ApiError();
+    throw err;
   }
 };
 
 const getEndorsements = async (req, res, session) => {
+  const logger = req.loggerWithRoute;
   try {
     const userId = req.userId; // from authMiddleware
+    logger.info(
+      `Get Endorsements Requested: User = "${userId}", User Type = "${req.body?.type}"`
+    );
     let endorsFilter =
       req.body?.type === "sender"
         ? { endorsedBy: userId }
@@ -64,8 +82,9 @@ const getEndorsements = async (req, res, session) => {
         .lean()
         .session(session),
     });
+    logger.info(`Endorsements sent successfully to user "${userId}"`);
   } catch (err) {
-    throw new ApiError();
+    throw err;
   }
 };
 

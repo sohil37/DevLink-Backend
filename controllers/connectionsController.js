@@ -4,16 +4,22 @@ const ApiError = require("../utils/helperClasses");
 const { setResponseJson } = require("../utils/helperFunctions");
 
 const sendConnRequest = async (req, res, session) => {
+  const logger = req.loggerWithRoute;
   try {
     const senderId = req.userId; // from authMiddleware
     let receiverId = req.body.userId;
+    logger.info(
+      `Connection Request Initiated: User "${senderId}" -> User "${receiverId}"`
+    );
     if (senderId === receiverId)
-      return setResponseJson({
-        res,
-        status: 400,
-        msg: "You can't connect with yourself",
-        requestStatus: "illegalRequest",
-      });
+      throw new ApiError(
+        `Connection Request Failed: User "${senderId}" tried connecting itself`,
+        "You can't connect yourself",
+        400,
+        {
+          requestStatus: "illegalRequest",
+        }
+      );
     const connection = await Connections.findOne({
       sender: senderId,
       receiver: receiverId,
@@ -23,17 +29,22 @@ const sendConnRequest = async (req, res, session) => {
       receiver: senderId,
     }).session(session);
     if (connection || reverseConnection)
-      return setResponseJson({
-        res,
-        status: 409,
-        msg: "Connection request already exists",
-        requestStatus: "alreadyExists",
-      });
+      throw new ApiError(
+        `Connection Request Failed: Connection request already exist between user "${senderId}" and user "${receiverId}"`,
+        "Connection request already exist",
+        409,
+        {
+          requestStatus: "alreadyExists",
+        }
+      );
     const connections = new Connections({
       sender: senderId,
       receiver: receiverId,
     });
     await connections.save({ session });
+    logger.info(
+      `Connection Request Successful: User "${senderId}" -> User "${receiverId}"`
+    );
     setResponseJson({
       res,
       status: 201,
@@ -41,56 +52,84 @@ const sendConnRequest = async (req, res, session) => {
       requestStatus: "created",
       id: connections._id,
     });
+    logger.info(
+      `Successful Response Sent for connection: User "${senderId}" -> User "${receiverId}"`
+    );
   } catch (err) {
-    throw new ApiError();
+    throw err;
   }
 };
 
 const acceptConnRequest = async (req, res, session) => {
+  const logger = req.loggerWithRoute;
   try {
     const userId = req.userId; // from authMiddleware
+    const connId = req.body.connId;
+    logger.info(
+      `Accept connection requested by user "${userId}" for connection id "${connId}"`
+    );
     const connection = await Connections.findOne({
-      _id: req.body.connId,
+      _id: connId,
       receiver: userId,
     }).session(session);
     if (!connection)
-      return setResponseJson({
-        res,
-        status: 400,
-        msg: "Invalid connection Id",
-      });
+      throw new ApiError(
+        `Accept Connection Failed: Invalid connection id "${connId}" sent by user "${userId}"`,
+        "Invalid connection Id",
+        400
+      );
     connection.status = "accepted";
     await connection.save({ session });
-    return setResponseJson({
+    logger.info(
+      `Connection accepted by user "${userId}" for connection id "${connId}"`
+    );
+    setResponseJson({
       res,
-      status: 200,
       msg: "Connection request accepted successfully",
       requestStatus: "accepted",
     });
+    logger.info(
+      `Successful response sent to user "${userId}" for connection id "${connId}"`
+    );
   } catch (err) {
-    throw new ApiError();
+    throw err;
   }
 };
 
 const removeConnRequest = async (req, res, session) => {
+  const logger = req.loggerWithRoute;
   try {
+    const userId = req.userId; // from authMiddleware
+    const connId = req.body.connId;
+    logger.info(
+      `Remove connection requested by user "${userId}" for connection id "${connId}"`
+    );
     await Connections.deleteOne({
-      _id: req.body.connId,
+      _id: connId,
     }).session(session);
-    return setResponseJson({
+    logger.info(
+      `Connection request removed by user "${userId}" for connection id "${connId}"`
+    );
+    setResponseJson({
       res,
-      status: 200,
       msg: "Connection request removed successfully",
       requestStatus: "removed",
     });
+    logger.info(
+      `Successful response sent to user "${userId}" for connection id "${connId}"`
+    );
   } catch (err) {
-    throw new ApiError();
+    throw err;
   }
 };
 
 const getConnections = async (req, res, session) => {
+  const logger = req.loggerWithRoute;
   try {
     const userId = req.userId; // from authMiddleware
+    logger.info(
+      `Get Connections Requested: User = "${userId}", User Type = "${req.body?.type}", Connection Status: "${req.body?.connStatus}"`
+    );
     let connFilter =
       req.body?.type === "sender"
         ? { sender: userId }
@@ -117,8 +156,9 @@ const getConnections = async (req, res, session) => {
       receiverProfile: profileMap.get(conn.receiver.toString()) || null,
     }));
     setResponseJson({ res, msg: "Connections", data: result });
+    logger.info(`Connections sent successfully to user "${userId}"`);
   } catch (err) {
-    throw new ApiError();
+    throw err;
   }
 };
 
