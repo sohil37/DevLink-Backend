@@ -3,6 +3,7 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const connectDB = require("./config/db");
 const express = require("express");
+const { authLimiter, apiLimiter } = require("./middleware/rateLimiter");
 const app = express();
 
 // CONNECT DB
@@ -21,10 +22,14 @@ app.use(express.json());
 app.use(cookieParser());
 
 // ROUTES
-app.use("/api/auth", require("./routes/authRoutes"));
-app.use("/api/profile", require("./routes/profileRoutes"));
-app.use("/api/connections", require("./routes/connectionsRoutes"));
-app.use("/api/endorsements", require("./routes/endorsementsRoutes"));
+app.use("/api/auth", authLimiter, require("./routes/authRoutes"));
+app.use("/api/profile", apiLimiter, require("./routes/profileRoutes"));
+app.use("/api/connections", apiLimiter, require("./routes/connectionsRoutes"));
+app.use(
+  "/api/endorsements",
+  apiLimiter,
+  require("./routes/endorsementsRoutes")
+);
 
 // START SERVER
 const PORT = process.env.PORT || 5000;
