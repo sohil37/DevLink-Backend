@@ -89,7 +89,7 @@ const login = async (req, res, session) => {
     );
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: false, // Set to true in production
+      secure: true, // Set to true in production
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });

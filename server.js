@@ -1,4 +1,10 @@
 require("dotenv").config();
+const csrf = require("csurf");
+const csrfProtection = csrf({
+  cookie: true,
+  httpOnly: true,
+  sameSite: "Strict",
+});
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const connectDB = require("./config/db");
@@ -8,28 +14,31 @@ const {
   apiLimiter,
 } = require("./middleware/rateLimiterMiddleware");
 const { v4: uuidv4 } = require("uuid");
+const helmet = require("helmet");
 const app = express();
 
 // CONNECT DB
 connectDB();
 
 // INCOMING MIDDLEWARES
+app.use(helmet());
 app.use(
   cors({
     origin: "*",
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["*"],
   })
 );
 app.use(express.json());
 app.use(cookieParser());
+app.use(csrfProtection);
 app.use((req, res, next) => {
   req.requestId = uuidv4();
   next();
 });
 
 // ROUTES
+app.get("/api/csrfToken", apiLimiter, (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
 app.use("/api/auth", authLimiter, require("./routes/authRoutes"));
 app.use("/api/profile", apiLimiter, require("./routes/profileRoutes"));
 app.use("/api/connections", apiLimiter, require("./routes/connectionsRoutes"));

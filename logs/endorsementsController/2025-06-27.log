@@ -1,0 +1,1 @@
+[2025-06-27 15:58:46] [endorsementsController] [POST /api/endorsements/getEndorsements] [reqId: 7b755ed0-98ff-46ab-9162-db3724a544fc] [INFO]: Get Endorsements Requested: User = "685bcd165b4ef54aebeea0d2", User Type = "receiver"
