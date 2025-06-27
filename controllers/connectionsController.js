@@ -1,7 +1,10 @@
 const Connections = require("../models/Connections");
 const UserProfile = require("../models/UserProfile");
 const ApiError = require("../utils/helperClasses");
-const { setResponseJson } = require("../utils/helperFunctions");
+const {
+  setResponseJson,
+  sanitizePublicProfile,
+} = require("../utils/helperFunctions");
 
 const sendConnRequest = async (req, res, session) => {
   const logger = req.loggerWithRoute;
@@ -142,19 +145,16 @@ const getConnections = async (req, res, session) => {
       ...connFilter,
       status: req.body?.connStatus,
     })
+      .populate("receiver")
       .lean()
       .session(session);
-    const receiverIds = connections.map((conn) => conn.receiver);
-    const userProfiles = await UserProfile.find({
-      _id: { $in: receiverIds },
-    }).session(session);
-    const profileMap = new Map(
-      userProfiles.map((profile) => [profile._id.toString(), profile])
-    );
-    const result = connections.map((conn) => ({
-      ...conn,
-      receiverProfile: profileMap.get(conn.receiver.toString()) || null,
-    }));
+    const result = connections.map((conn) => {
+      const { receiver, ...rest } = conn;
+      return {
+        ...rest,
+        receiverProfile: sanitizePublicProfile(receiver),
+      };
+    });
     setResponseJson({ res, msg: "Connections", data: result });
     logger.info(`Connections sent successfully to user "${userId}"`);
   } catch (err) {

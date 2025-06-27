@@ -25,17 +25,6 @@ const userProfileSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-userProfileSchema.set("toJSON", {
-  transform: (doc, ret) => {
-    delete ret.__v;
-    delete ret.createdAt;
-    delete ret.updatedAt;
-    delete ret.phoneNo;
-    delete ret.isProfileComplete;
-    return ret;
-  },
-});
-
 module.exports = mongoose.model(
   "UserProfile",
   userProfileSchema,

@@ -49,10 +49,21 @@ const getExpInfo = (experience = []) => {
   return exp;
 };
 
+const sanitizePublicProfile = (profile) => {
+  const clone = { ...profile };
+  delete clone.__v;
+  delete clone.createdAt;
+  delete clone.updatedAt;
+  delete clone.phoneNo;
+  delete clone.isProfileComplete;
+  return clone;
+};
+
 module.exports = {
   isEndDateValid,
   isTechnologyValid,
   setResponseJson,
   mongoTransaction,
   getExpInfo,
+  sanitizePublicProfile,
 };

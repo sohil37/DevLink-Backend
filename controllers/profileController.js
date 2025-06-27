@@ -1,5 +1,9 @@
 const UserProfile = require("../models/UserProfile");
-const { setResponseJson, getExpInfo } = require("../utils/helperFunctions");
+const {
+  setResponseJson,
+  getExpInfo,
+  sanitizePublicProfile,
+} = require("../utils/helperFunctions");
 const lodash = require("lodash");
 
 const updateProfile = async (req, res, session) => {
@@ -65,7 +69,9 @@ const searchProfile = async (req, res, session) => {
     setResponseJson({
       res,
       msg: "Filtered Profiles",
-      data: await UserProfile.find(filter).session(session),
+      data: (await UserProfile.find(filter).lean().session(session)).map(
+        sanitizePublicProfile
+      ),
     });
     logger.info(`Profiles sent to user "${userId}"`);
   } catch (err) {
