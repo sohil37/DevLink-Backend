@@ -6,7 +6,7 @@ const errorHandler = (err, req, res, next) => {
   return setResponseJson({
     res,
     status: err.status || 500,
-    msg: err.responseMsg,
+    msg: err.responseMsg || err.message,
     ...err.data,
   });
 };
