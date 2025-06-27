@@ -1,5 +1,4 @@
 const Connections = require("../models/Connections");
-const UserProfile = require("../models/UserProfile");
 const ApiError = require("../utils/helperClasses");
 const {
   setResponseJson,

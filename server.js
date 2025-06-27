@@ -16,6 +16,8 @@ const {
 const { v4: uuidv4 } = require("uuid");
 const helmet = require("helmet");
 const attachLogger = require("./middleware/loggerMiddleware");
+const buildLogger = require("./utils/logger");
+const logger = buildLogger("server");
 const app = express();
 
 // CONNECT DB
@@ -51,8 +53,26 @@ app.use(
 // OUTGOING MIDDLEWARES
 app.use(require("./middleware/errorHandlerMiddleware"));
 
-// START SERVER
+// SERVER START
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () =>
-  console.log(`Server started at http://localhost:${PORT}`)
-);
+const server = app.listen(PORT, () => {
+  logger.info(`Server started at http://localhost:${PORT}`);
+  console.log(`Server started at http://localhost:${PORT}`);
+});
+
+// SERVER SHUTDOWN
+process.on("SIGINT", () => {
+  logger.info("SIGINT received. Shutting down server...");
+  server.close(() => {
+    logger.info("Server turned off.");
+    process.exit(0);
+  });
+});
+
+process.on("SIGTERM", () => {
+  logger.info("SIGTERM received. Shutting down server...");
+  server.close(() => {
+    logger.info("Server turned off.");
+    process.exit(0);
+  });
+});
